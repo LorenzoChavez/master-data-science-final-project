@@ -1,17 +1,18 @@
 import os
 import shutil
-import re
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import cv2
-import matplotlib.pyplot as plt
 from keras.applications.mobilenet import MobileNet, preprocess_input
+from utils import save_embeddings, remove_gitkeep
 
 
 def start_store(seed, csvs_path, dataset_path, store_path):
+    """Initiates everything required to make the flask app work, such as: 
+        Creating the dataframe of products for the store, moving the product images to the store directory.
+    Seed by default is 2018 which matches the validation set, for a different set of photos change the seed.
+    """
     np.random.seed(seed)
-
     customer_df = pd.read_csv(os.path.join(csvs_path, "customer_df.csv"))
     retrieval_df = pd.read_csv(os.path.join(csvs_path, "retrieval_df.csv"))
     
@@ -33,7 +34,6 @@ def start_store(seed, csvs_path, dataset_path, store_path):
     
     photos_list = products_df_final["photo"].tolist() #photo names are already unique
     photos_list = [str(photo) + ".jpg" for photo in photos_list]
-    print(photos_list)
     if not os.path.exists(store_path):
         os.makedirs(store_path, exist_ok=True)    
     
@@ -42,34 +42,20 @@ def start_store(seed, csvs_path, dataset_path, store_path):
                 
     products_df_final = products_df_final.sort_values(by="photo")
     products_df_final.to_csv(os.path.join("..", "utils", "products.csv"), index=False)
-
-def find_paths(dataset_path):
-    img_paths = os.listdir(dataset_path)
-    img_paths = sorted(img_paths, key = lambda x: int(re.sub("(\\D)", "", x))) #sorts numeric rather than str
-    img_paths = [os.path.join(dataset_path, img) for img in img_paths]
-    return img_paths
-    
-def save_embeddings(dataset_path, resize=(224,224)):
-    img_paths = find_paths(dataset_path)    
-    model = MobileNet(weights="imagenet", include_top=False, pooling="avg")
-    embeddings_tensor = np.zeros((len(img_paths), 1024))
-    
-    with tqdm(total=len(img_paths)) as pbar:
-        for n, img in enumerate(img_paths):
-            img_array = plt.imread(img)
-            img_array = cv2.resize(img_array, dsize=resize, interpolation=cv2.INTER_CUBIC)
-            img_array = preprocess_input(img_array)
-            img_array = model.predict(np.expand_dims(img_array, axis=0)) #default ouput shape mobilenet (6,6,1024)
-            embeddings_tensor[n] = img_array.flatten()
-            pbar.update(1)
-    embeddings_tensor = embeddings_tensor.astype(np.float16)
-    
-    np.save("../embeddings.npy", embeddings_tensor) #npy files save/load faster than csv when working with ndarrays
     
 if __name__ == "__main__":
     seed = 2018
-    csvs_path = os.path.join("..", "..")
-    dataset_path = os.path.join(".." , "..", "photos_resized")
+    csvs_path = os.path.join("..", "notebooks")
+    dataset_path = os.path.join("..", "photos_resized")
     store_path = os.path.join("..", "static", "images", "store")
-    start_store(seed, csvs_path, dataset_path, store_path)
-    save_embeddings(store_path)
+    
+    remove_gitkeep(store_path) #removes gitkeep files
+    remove_gitkeep(os.path.join(".", "static", "images", "recommend"))
+    remove_gitkeep(os.path.join(".", "static", "images", "user"))
+
+    start_store(seed, csvs_path, dataset_path, store_path) #creating the store dataframe and placing the images on the store directory
+
+    resizing = (224,224)
+    shape_output = 1024
+    model = MobileNet(input_shape=(224, 224, 3), weights="imagenet", include_top=False, pooling="avg")
+    save_embeddings(store_path, "embeddings.npy", model, preprocess_input, shape_output, resizing) #creating the embeddings file for the store imagescess_input, shape_output, resizing) #creating the embeddings file for the store imagescess_input, shape_output, resizing) #creating the embeddings file for the store images
