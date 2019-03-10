@@ -1,4 +1,5 @@
-# Final project of the Master in Data Science
+## Final project of the Master in Data Science: 
+# Improving User Experience in the Fashion Industry
 
 This project has been developed by [Antonio Ramos](https://github.com/antonioramos1/) and [Lorenzo Chavez](https://github.com/LorenzoChavez).
 
